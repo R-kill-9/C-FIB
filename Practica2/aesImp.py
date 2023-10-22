@@ -166,7 +166,10 @@ class AES:
         return bytes(sum(matrix, []))
 
     def xor_bytes(self, a, b):
-        return bytes(i^j for i, j in zip(a, b))
+        a_bytes = bytes([x.to_bytes(1, byteorder='big')[0] for x in a])
+        b_bytes = bytes([x.to_bytes(1, byteorder='big')[0] for x in b])
+        result = [i ^ j for i, j in zip(a_bytes, b_bytes)]
+        return bytes(result)
 
     def KeyExpansion(self, key):
         # Initialize round keys with raw key material.
@@ -183,14 +186,14 @@ class AES:
                 # Circular shift.
                 word.append(word.pop(0))
                 # Map to S-BOX.
-                word = [s_box[b] for b in word]
+                word = [self.SBox[b] for b in word]
                 # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
-                word[0] ^= r_con[i]
+                word[0] ^= self.Rcon[i]
                 i += 1
             elif len(key) == 32 and len(key_columns) % iteration_size == 4:
                 # Run word through S-box in the fourth iteration when using a
                 # 256-bit key.
-                word = [s_box[b] for b in word]
+                word = [self.SBox[b] for b in word]
 
             # XOR with equivalent word from previous iteration.
             word = self.xor_bytes(word, key_columns[-iteration_size])
@@ -280,7 +283,7 @@ class AES:
         for i in range(0, len(plaintext), block_size):
             block = plaintext[i:i+block_size]
             # Debes implementar el cifrado AES para cada bloque y almacenar el resultado en encrypted_block
-            encrypted_block = self.Cipher(xor_bytes(block, prevoius), self.Nr, self.Expanded_KEY)
+            encrypted_block = self.Cipher(self.xor_bytes(block, previous), self.Nr, self.Expanded_KEY)
             # Agrega el bloque cifrado a la lista
             encrypted_blocks.append(encrypted_block)
             # Iguala previous al bloque actual
@@ -320,7 +323,7 @@ class AES:
                 if not block:
                     break
                 decrypted_block = self.InvCipher(block, self.Nr, self.Expanded_KEY)
-                decrypted_blocks.append(xor_bytes(previous, decrypted_block))
+                decrypted_blocks.append(self.xor_bytes(previous, decrypted_block))
 
         # Unir los bloques descifrados
         decrypted_data = b"".join(decrypted_blocks)
