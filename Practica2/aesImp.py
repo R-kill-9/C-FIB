@@ -166,8 +166,8 @@ class AES:
         return bytes(sum(matrix, []))
 
     def xor_bytes(self, a, b):
-        a_bytes = bytes([x.to_bytes(1, byteorder='big')[0] for x in a])
-        b_bytes = bytes([x.to_bytes(1, byteorder='big')[0] for x in b])
+        a_bytes = bytes([int(x).to_bytes(1, byteorder='big')[0] for x in a])
+        b_bytes = bytes([int(x).to_bytes(1, byteorder='big')[0] for x in b])
         result = [i ^ j for i, j in zip(a_bytes, b_bytes)]
         return bytes(result)
 
@@ -188,7 +188,8 @@ class AES:
                 # Map to S-BOX.
                 word = [self.SBox[b] for b in word]
                 # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
-                word[0] ^= self.Rcon[i]
+                if i < len(self.Rcon):
+                    word[0] ^= self.Rcon[i]
                 i += 1
             elif len(key) == 32 and len(key_columns) % iteration_size == 4:
                 # Run word through S-box in the fourth iteration when using a
@@ -204,7 +205,7 @@ class AES:
 
 
     def Cipher(self, State, Nr, Expanded_KEY):
-        pt_state = bytes2matrix(State)
+        pt_state = self.bytes2matrix(State)
         self.AddRoundKey(pt_state, self.Expanded_KEY[0])
         for i in range(1, self.Nr):
             self.SubBytes(pt_state)
@@ -216,11 +217,11 @@ class AES:
         self.ShiftRows(pt_state)
         self.AddRoundKey(pt_state, self.Expanded_KEY[self.Nr])
 
-        self.State = matrix2bytes(pt_state)
+        self.State = self.matrix2bytes(pt_state)
 
 
     def InvCipher(self, State, Nr, Expanded_KEY):
-        cipher_state = bytes2matrix(State)
+        cipher_state = self.bytes2matrix(State)
         
         self.AddRoundKey(cipher_state, self.Expanded_KEY[0])
         self.InvShiftRows(cipher_state)
@@ -235,7 +236,7 @@ class AES:
 
         self.AddRoundKey(cipher_state, self.Expanded_KEY[0])
 
-        self.State = matrix2bytes(cipher_state)
+        self.State = self.matrix2bytes(cipher_state)
 
 
     def pad(self, data):
