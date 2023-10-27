@@ -19,6 +19,7 @@ class G_F:
             x = self.xTimes(x)
             
 
+
     def xTimes(self, n):
         result = n << 1
         # Si el resultado nos da mayor que 255 hacemos XOR con el polinomio irreducible.
@@ -52,12 +53,15 @@ class G_F:
 class AES:
     
     def generate_s_boxes(self):
+        # Para generar las Sbox hemos usado https://github.com/Merricx/aes-sbox/blob/master/sbox.js
+        # Calculamos el multiplicativo inverso
         t = [0] * 256
         x = 1
         for i in range(256):
             t[i] = x
             x ^= (x << 1) ^ ((x >> 7) * self.Polinomio_Irreducible)
 
+        # Generate Sbox with Affine transformation
         Sbox = [0] * 256
         Sbox[0] = 0x63
         InvSbox = [0] * 256
@@ -69,18 +73,15 @@ class AES:
             InvSbox[Sbox[t[i]]] = t[i]
         self.SBox = Sbox
         self.InvSBox = InvSbox
+    
+    
 
 
     def generate_rcon(self):
-        Rcon = [0x01]
-        for i in range(1, 32):
-            previous = Rcon[-1]
-            if previous < 0x80:
-                current = (previous << 1)
-            else:
-                current = (previous << 1) ^ self.Polinomio_Irreducible 
-            Rcon.append(current & 0xFF)  
-        return Rcon
+        self.Rcon = [1]
+        for i in range(1, 10):
+            self.Rcon.append(self.gf.xTimes(self.Rcon[i-1]))
+
 
 
     def __init__(self, key, Polinomio_Irreducible):
@@ -90,7 +91,13 @@ class AES:
         self.InvSBox = [0]*256
         self.generate_s_boxes()
 
-        self.Rcon = self.generate_rcon()
+        self.Rcon = (
+                    0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
+                    0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
+                    0x2F, 0x5E, 0xBC, 0x63, 0xC6, 0x97, 0x35, 0x6A,
+                    0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
+                    )
+
 
         self.InvMixMatrix=(
             [0x0E, 0x0B, 0x0D, 0x09],
@@ -127,7 +134,7 @@ class AES:
         State[0][3], State[1][3], State[2][3], State[3][3] = State[1][3], State[2][3], State[3][3], State[0][3]
 
 
-    def mix_column(self, State):
+    def mix_single_column(self, State):
         column_bytes = State[0] ^ State[1] ^ State[2] ^ State[3]
         column_first_byte = State[0]
         State[0] ^= column_bytes ^ self.gf.xTimes(State[0] ^ State[1])
@@ -135,11 +142,9 @@ class AES:
         State[2] ^= column_bytes ^ self.gf.xTimes(State[2] ^ State[3])
         State[3] ^= column_bytes ^ self.gf.xTimes(State[3] ^ column_first_byte)
 
-
     def MixColumns(self, State):
         for i in range(4):
-            self.mix_column(State[i])
-
+            self.mix_single_column(State[i])
 
     def InvMixColumns(self, State):
         for i in range(4):
@@ -160,64 +165,45 @@ class AES:
     
 
     def bytes2matrix(self, text):
-        matrix = []
-        for i in range(0, len(text), 4):
-            row = []
-            for j in range(4):
-                if i + j < len(text):
-                    row.append(text[i + j])
-                else:
-                    row.append(0)
-            matrix.append(row)
-        return matrix
-
+        return [list(text[i:i+4]) for i in range(0, len(text), 4)]
 
     def matrix2bytes(self, matrix):
-        text = []
-        for row in matrix:
-            text.extend(row)
-        return bytes(text)
-
+        return bytes(sum(matrix, []))
 
     def xor_bytes(self, a, b):
-        bytes_xored = []
-        for i, j in zip(a, b):
-            bytes_xored.append(i ^ j)
-        return bytes(bytes_xored)
-
-    def schedule_core(self, word, iteration):
-        word.append(word.pop(0))
-        word = [self.SBox[b] for b in word]
-        word[0] ^= self.Rcon[iteration]
-        return word
-
+        """ Returns a new byte array with the elements xor'ed. """
+        return bytes(i^j for i, j in zip(a, b))
 
     def KeyExpansion(self, key):
-        # Inicializa las columnas de las claves con el material de clave crudo.
-        columns = self.bytes2matrix(key)
-        it = len(key) // 4
+        # Initialize round keys with raw key material.
+        key_columns = self.bytes2matrix(key)
+        iteration_size = len(key) // 4
 
         i = 1
-        while len(columns) < (self.Nr + 1) * 4:
-            # Copia la word anterior.
-            word = list(columns[-1])
+        while len(key_columns) < (self.Nr + 1) * 4:
+            # Copy previous word.
+            word = list(key_columns[-1])
 
-            # Realiza schedule_core una vez cada "fila".
-            if len(columns) % it == 0:
-                word = self.schedule_core(word, i)
+            # Perform schedule_core once every "row".
+            if len(key_columns) % iteration_size == 0:
+                # Circular shift.
+                word.append(word.pop(0))
+                # Map to S-BOX.
+                word = [self.SBox[b] for b in word]
+                # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
+                word[0] ^= self.Rcon[i]
                 i += 1
-            elif len(key) == 32 and len(columns) % it == 4:
-                # Ejecuta la word a través de S-box en la cuarta iteración cuando se usa una clave de 256 bits.
+            elif len(key) == 32 and len(key_columns) % iteration_size == 4:
+                # Run word through S-box in the fourth iteration when using a
+                # 256-bit key.
                 word = [self.SBox[b] for b in word]
 
-            # XOR con la word equivalente de la iteración anterior.
-            word = self.xor_bytes(word, columns[-it])
-            columns.append(word)
+            # XOR with equivalent word from previous iteration.
+            word = self.xor_bytes(word, key_columns[-iteration_size])
+            key_columns.append(word)
 
-        # Agrupa las words clave en matrices de 4x4 bytes.
-        return [columns[4*i: 4*(i+1)] for i in range(len(columns) // 4)]
-
-
+        # Group key words in 4x4 byte matrices.
+        return [key_columns[4*i : 4*(i+1)] for i in range(len(key_columns) // 4)]
 
 
     def Cipher(self, State, Nr, Expanded_KEY):
@@ -250,6 +236,8 @@ class AES:
             self.InvMixColumns(cipher_state)
             self.InvShiftRows(cipher_state)
             self.InvSubBytes(cipher_state)
+            
+            
 
         roundkey = self.Expanded_KEY[0]
         self.AddRoundKey(cipher_state, roundkey)
@@ -259,64 +247,68 @@ class AES:
 
 
     def pad(self, plaintext):
-        block_size = 16
-        length = block_size - (len(plaintext) % block_size)
-        padding = bytes([length] * length)
+        """
+        Pads the given plaintext with PKCS#7 padding to a multiple of 16 bytes.
+        Note that if the plaintext size is a multiple of 16,
+        a whole block will be added.
+        """
+        padding_len = 16 - (len(plaintext) % 16)
+        padding = bytes([padding_len] * padding_len)
         return plaintext + padding
 
 
     def unpad(self, plaintext):
-        block_size = 16
-        length = plaintext[-1]
-        assert length > 0
-        message, padding = plaintext[:-length], plaintext[-length:]
-        assert all(p == length for p in padding)
+        """
+        Removes a PKCS#7 padding, returning the unpadded text and ensuring the
+        padding was correct.
+        """
+        padding_len = plaintext[-1]
+        assert padding_len > 0
+        message, padding = plaintext[:-padding_len], plaintext[-padding_len:]
+        assert all(p == padding_len for p in padding)
         return message
 
-
-    def split_blocks(self, message):
-        block_size = 16
-        assert len(message) % block_size == 0
-        
-        blocks = []
-        for i in range(0, len(message), block_size):
-            block = message[i:i+block_size]
-            blocks.append(block)
-        
-        return blocks
-
+    def split_blocks(self, message, block_size=16, require_padding=True):
+        assert len(message) % block_size == 0 or not require_padding
+        return [message[i:i+16] for i in range(0, len(message), block_size)]
 
     def encrypt_file(self, fichero):
+        # Generar un IV aleatorio de 16 bytes
         iv = os.urandom(16)
 
-        # Obtenemos el nombre del archivo cifrado
+        # Obtener el nombre del archivo cifrado
         output_filename = fichero + ".enc"
 
-        # Abrimos el archivo de entrada y lectura
+        # Abrir el archivo de entrada y lectura
         with open(fichero, 'rb') as input_file:
             plaintext = input_file.read()
-
+        # Aplicar el padding PKCS7
         plaintext = self.pad(plaintext)
 
-        # Dividimos el texto en bloques de 16 bytes
+        # Dividir el texto en bloques de 16 bytes
         block_size = 16
         encrypted_blocks = []
         previous = iv
         for i in self.split_blocks(plaintext):
+            # Debes implementar el cifrado AES para cada bloque y almacenar el resultado en encrypted_block
             encrypted_block = self.Cipher(self.xor_bytes(i, previous), self.Nr, self.Expanded_KEY)
+            # Agrega el bloque cifrado a la lista
             encrypted_blocks.append(encrypted_block)
+            # Iguala previous al bloque actual
             previous = encrypted_block
+            
 
+        # Escribir el IV en el archivo cifrado
         with open(output_filename, 'wb') as output_file:
             output_file.write(iv)
+            # Escribir los bloques cifrados en el archivo
             for encrypted_block in encrypted_blocks:
                 output_file.write(encrypted_block)
 
         print(f"Archivo cifrado y guardado como {output_filename}")
 
-
     def decrypt_file(self, fichero):
-        # Obtenemos el nombre del archivo original sin la extensión ".enc"
+        # Obtener el nombre del archivo original sin la extensión ".enc"
         output_filename = "decrypted_" + fichero[:-4] 
 
         iv = 0
@@ -327,22 +319,25 @@ class AES:
             input_file.seek(16)
             ciphertext = input_file.read()
 
+        # Inicializar la lista para almacenar los bloques descifrados
         decrypted_blocks = []
         
+
         previous = iv
-        # Abrimos el archivo cifrado y leer los bloques cifrados
+        # Abrir el archivo cifrado y leer los bloques cifrados
         with open(fichero, 'rb') as input_file:
             for i in self.split_blocks(ciphertext):
                 decrypted_block = self.InvCipher(i, self.Nr, self.Expanded_KEY)
                 decrypted_blocks.append(self.xor_bytes(previous, decrypted_block))
                 previous = i
 
-        # Unimos los bloques descifrados
+        # Unir los bloques descifrados
         decrypted_data = b"".join(decrypted_blocks)
 
-        # Eliminamos el padding 
+        # Eliminar el relleno PKCS7
         decrypted_data = self.unpad(decrypted_data)
 
+        # Escribir los datos descifrados en un archivo de salida
         with open(output_filename, 'wb') as output_file:
             output_file.write(decrypted_data)
 
