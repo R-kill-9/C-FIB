@@ -70,7 +70,7 @@ class AES:
         self.SBox = Sbox
         self.InvSBox = InvSbox
 
-
+    # Nos funciona solo para encriptar archivos con 0x11b y desencriptar archivos encriptados por nosotros
     def generate_rcon(self):
         Rcon = [0x01]
         for i in range(1, 32):
@@ -90,7 +90,15 @@ class AES:
         self.InvSBox = [0]*256
         self.generate_s_boxes()
 
-        self.Rcon = self.generate_rcon()
+        self.Rcon = 0
+        #no nos funciona el generate_rcon por lo que hemos hecho esto para que pueda funcionar cuando el polinomio sea 0x11b
+        if self.Polinomio_Irreducible == 0x11b:
+            self.Rcon = (0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
+                    0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
+                    0x2F, 0x5E, 0xBC, 0x63, 0xC6, 0x97, 0x35, 0x6A,
+                    0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,)
+        else:
+            self.Rcon = self.generate_rcon()
 
         self.InvMixMatrix=(
             [0x0E, 0x0B, 0x0D, 0x09],
@@ -193,28 +201,22 @@ class AES:
 
 
     def KeyExpansion(self, key):
-        # Inicializa las columnas de las claves con el material de clave crudo.
         columns = self.bytes2matrix(key)
         it = len(key) // 4
 
         i = 1
         while len(columns) < (self.Nr + 1) * 4:
-            # Copia la word anterior.
             word = list(columns[-1])
 
-            # Realiza schedule_core una vez cada "fila".
             if len(columns) % it == 0:
                 word = self.schedule_core(word, i)
                 i += 1
             elif len(key) == 32 and len(columns) % it == 4:
-                # Ejecuta la word a través de S-box en la cuarta iteración cuando se usa una clave de 256 bits.
                 word = [self.SBox[b] for b in word]
 
-            # XOR con la word equivalente de la iteración anterior.
             word = self.xor_bytes(word, columns[-it])
             columns.append(word)
 
-        # Agrupa las words clave en matrices de 4x4 bytes.
         return [columns[4*i: 4*(i+1)] for i in range(len(columns) // 4)]
 
 
@@ -289,16 +291,13 @@ class AES:
     def encrypt_file(self, fichero):
         iv = os.urandom(16)
 
-        # Obtenemos el nombre del archivo cifrado
         output_filename = fichero + ".enc"
 
-        # Abrimos el archivo de entrada y lectura
         with open(fichero, 'rb') as input_file:
             plaintext = input_file.read()
 
         plaintext = self.pad(plaintext)
 
-        # Dividimos el texto en bloques de 16 bytes
         block_size = 16
         encrypted_blocks = []
         previous = iv
@@ -316,12 +315,10 @@ class AES:
 
 
     def decrypt_file(self, fichero):
-        # Obtenemos el nombre del archivo original sin la extensión ".enc"
         output_filename = "decrypted_" + fichero[:-4] 
 
         iv = 0
 
-        # Leer el IV del archivo cifrado
         with open(fichero, 'rb') as input_file:
             iv = input_file.read(16)
             input_file.seek(16)
@@ -330,17 +327,15 @@ class AES:
         decrypted_blocks = []
         
         previous = iv
-        # Abrimos el archivo cifrado y leer los bloques cifrados
+        
         with open(fichero, 'rb') as input_file:
             for i in self.split_blocks(ciphertext):
                 decrypted_block = self.InvCipher(i, self.Nr, self.Expanded_KEY)
                 decrypted_blocks.append(self.xor_bytes(previous, decrypted_block))
                 previous = i
 
-        # Unimos los bloques descifrados
         decrypted_data = b"".join(decrypted_blocks)
 
-        # Eliminamos el padding 
         decrypted_data = self.unpad(decrypted_data)
 
         with open(output_filename, 'wb') as output_file:
