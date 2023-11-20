@@ -1,58 +1,18 @@
 import os
 import random
 import hashlib
+from rsa import rsa_public_key
 
-
-
-class rsa_key:
-    
-    def __init__(self,bits_modulo=2048,e=2**16+1):
-        self.publicExponent
-        self.privateExponent
-        self.modulus
-        self.primeP
-        self.primeQ
-        self.privateExponentModulusPhiP
-        self.privateExponentModulusPhiQ
-        self.inverseQModulusP
-    
-    
-    def sign(self,message):
-    '''
-    Salida= un entero que es la firma de message hecha con la clave RSA usando el TCR
-    '''
-    
-    
-    def sign_slow(self,message):
-    '''
-    Salida: un entero que es la firma de "message" hecha con la clave RSA sin usar el TCR
-    '''
-
-
-class rsa_public_key:
-    
-    def __init__(self, rsa_key):
-        self.publicExponent
-        self.modulus
-    
-
-    def verify(self, message, signature):
-    '''
-    Salida: el booleano True si "signature" se corresponde con la
-    firma de "message" hecha con la clave RSA asociada a la clave
-    p´ublica RSA;
-    el booleano False en cualquier otro caso.
-    '''
 
 
 class transaction:
     
     def __init__(self, message, RSAkey):
-        self.public_key
-        self.message
-        self.signature  
+        self.public_key = rsa_public_key(rsa_key)
+        self.message = message
+        self.signature = rsa_key.sign(message)
 
-    
+
     def verify(self):
     '''
     Salida: el booleano True si "signature" se corresponde con la
@@ -60,6 +20,7 @@ class transaction:
     p´ublica RSA;
     el booleano False en cualquier otro caso.
     '''
+        return self.public_key.verify(self.message, self.signature)
 
 
 class block:
@@ -73,13 +34,13 @@ class block:
     
     def create_hash(self):
     '''genera un hash válido'''
-    entrada=str(self.previous_block_hash)
-    entrada=entrada+str(self.transaction.public_key.publicExponent)
-    entrada=entrada+str(self.transaction.public_key.modulus)
-    entrada=entrada+str(self.transaction.message)
-    entrada=entrada+str(self.transaction.signature)
-    entrada=entrada+str(seed)
-    h=int(hashlib.sha256(entrada.encode()).hexdigest(),16)
+        entrada=str(self.previous_block_hash)
+        entrada=entrada+str(self.transaction.public_key.publicExponent)
+        entrada=entrada+str(self.transaction.public_key.modulus)
+        entrada=entrada+str(self.transaction.message)
+        entrada=entrada+str(self.transaction.signature)
+        entrada=entrada+str(seed)
+        h=int(hashlib.sha256(entrada.encode()).hexdigest(),16)
 
 
     def genesis(self,transaction):
@@ -103,15 +64,15 @@ class block:
     '''
     genera un bloque v´alido seguiente al actual con la transacci´on "transaction"
     '''
-    next_block = block()
-    next_block.previous_block_hash = self.block_hash
-    next_block.transaction = transaction
-    next_block.seed = random.randrange(0,2**256)
-    next_block.block_hash = next_block.create_hash()
-    while not next_block.verify_block():
+        next_block = block()
+        next_block.previous_block_hash = self.block_hash
+        next_block.transaction = transaction
         next_block.seed = random.randrange(0,2**256)
         next_block.block_hash = next_block.create_hash()
-    return next_block
+        while not next_block.verify_block():
+            next_block.seed = random.randrange(0,2**256)
+            next_block.block_hash = next_block.create_hash()
+        return next_block
 
     
     def verify_block(self):
@@ -123,12 +84,12 @@ class block:
     Salida: el booleano True si todas las comprobaciones son correctas;
     el booleano False en cualquier otro caso.
     '''
-    # comprobacion bloque anterior
-    assert self.previous_block_hash < 2**(256-16), "El hash del bloque anterior no cumple las condiciones exigidas"
-    # comprobacion bloque actual
-    assert self.transaction.verify() != True, "El hash del bloque no cumple las condiciones exigidas"
-    # comprobacion bloque actual
-    assert self.block_hash < 2**(256-16), "El hash del bloque no cumple las condiciones exigidas"
+        # comprobacion bloque anterior
+        assert self.previous_block_hash < 2**(256-16), "El hash del bloque anterior no cumple las condiciones exigidas"
+        # comprobacion bloque actual
+        assert self.transaction.verify() != True, "El hash del bloque no cumple las condiciones exigidas"
+        # comprobacion bloque actual
+        assert self.block_hash < 2**(256-16), "El hash del bloque no cumple las condiciones exigidas"
 
 
     def is_genesis(self):
@@ -145,14 +106,14 @@ class block_chain:
     genera una cadena de bloques que es una lista de bloques,
     el primer bloque es un bloque "genesis" generado amb la transacci´o "transaction"
     '''
-    self.list_of_blocks = block().genesis(transaction)
+        
     
     
     def add_block(self,transaction):
     '''
     a~nade a la cadena un nuevo bloque v´alido generado con la transacci´on "transaction"
     '''
-    self.list_of_blocks.append(self.list_of_blocks[-1].next_block(transaction))
+        self.list_of_blocks.append(self.list_of_blocks[-1].next_block(transaction))
     
     
     def verify(self):
@@ -167,19 +128,19 @@ class block_chain:
     '''
     # verifica que todos los bloques sean validos y que el siguiente bloque es correcto
     # recorre la lista desde el final empezando por la penultima posicion
-    esperado = self.list_of_blocks[-2].return_hash()
-    for i, block in range(reversed(self.list_of_blocks), 0, -1):
-        block.verify()
-        hash = block.return_hash()
-        assert hash != esperado
-        esperado = self.list_of_blocks[-1-i].return_hash()
-    self.list_of_blocks[0].verify()
-    self.list_of_blocks[-1].verify()
-    return True
+        esperado = self.list_of_blocks[-2].return_hash()
+        for i, block in range(reversed(self.list_of_blocks), 0, -1):
+            block.verify()
+            hash = block.return_hash()
+            assert hash != esperado
+            esperado = self.list_of_blocks[-1-i].return_hash()
+        self.list_of_blocks[0].verify()
+        self.list_of_blocks[-1].verify()
+        return True
 
-    # verifica que el primer bloque es genesis
-    assert self.list_of_blocks[0].is_genesis != True, "el primer bloque NO es un bloque genesis"
-    return True
+        # verifica que el primer bloque es genesis
+        assert self.list_of_blocks[0].is_genesis != True, "el primer bloque NO es un bloque genesis"
+        return True
 
 
 def main():
