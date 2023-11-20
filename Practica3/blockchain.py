@@ -106,8 +106,7 @@ class block_chain:
     genera una cadena de bloques que es una lista de bloques,
     el primer bloque es un bloque "genesis" generado amb la transacci´o "transaction"
     '''
-        
-    
+        self.list_of_blocks = [block().genesis(transaction)]
     
     def add_block(self,transaction):
     '''
