@@ -141,11 +141,3 @@ class block_chain:
         # verifica que el primer bloque es genesis
         assert self.list_of_blocks[0].is_genesis != True, "el primer bloque NO es un bloque genesis"
         return True
-
-
-def main():
-    
-
-
-if __name__ == "__main__":
-    main()
