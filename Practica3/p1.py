@@ -6,6 +6,7 @@ import pickle
 import hashlib
 import string
 import random
+from time import time
 
 
 def get_random_alphanumeric_string(length):
@@ -62,8 +63,7 @@ def generate_block_chain(output, limit, num_blocks):
 
     if limit < num_blocks:
         for i in range(limit, num_blocks):
-            blockchain.add_wrong_block(next(transactions))
-            print(f'Invalid block {i} created')
+            blockchain.add_invalid_block(next(transactions))
 
     
     with open(output, 'wb') as output_file:
@@ -73,8 +73,7 @@ def generate_block_chain(output, limit, num_blocks):
     if valid:
         print(f"Se ha generado una Blockchain válida en el archivo {output}")
     else:
-        print(f"Se ha creado el fichero {output}.\n"
-              f"El Blockchain es válido hasta el bloque {idx} de {num_blocks}.")
+        print(f"Se ha generado una Blockchain NO válida en el archivo {output}, el primer bloque inválido es {idx}")
     exit()
 
 

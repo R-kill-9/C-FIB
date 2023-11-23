@@ -38,6 +38,21 @@ class block:
         return h == self.block_hash
 
 
+    def create_invalid_hash(self):
+    # genera un hash no válido
+        while True:
+            entrada=str(self.previous_block_hash)
+            entrada=entrada+str(self.transaction.public_key.publicExponent)
+            entrada=entrada+str(self.transaction.public_key.modulus)
+            entrada=entrada+str(self.transaction.message)
+            entrada=entrada+str(self.transaction.signature)
+            entrada=entrada+str(self.seed)
+            h=int(hashlib.sha256(entrada.encode()).hexdigest(),16)
+            if entrada > 2 ** (256 - 16):
+                break
+        return h == self.block_hash
+
+
     def genesis(self,transaction):
         self.previous_block_hash = 0
         self.transaction = transaction
@@ -61,7 +76,19 @@ class block:
             next_block.block_hash = next_block.create_hash()
         return next_block
 
-    
+
+    def next_invalid_block(self, transaction):
+        """
+        Genera el següent bloc invàlid amb la transacció "transaction".
+        """
+        next_block = block()
+        next_block.previous_block_hash = self.block_hash
+        next_block.transaction = transaction
+        next_block.seed = random.randrange(0,2**256)
+        next_block.block_hash = next_block.create_invalid_hash
+        return next_block
+
+
     def verify_block(self):
 
     # Verifica si un bloque es v´alido:
@@ -71,7 +98,7 @@ class block:
     # Salida: el booleano True si todas las comprobaciones son correctas;
     # el booleano False en cualquier otro caso.
         # comprobacion bloque anterior ---- comprobacion bloque actual ----comprobacion bloque actual
-        return self.previous_block_hash < 2**(256-16) and self.transaction.verify() != True and self.block_hash < 2**(256-16)
+        return (self.previous_block_hash < 2**(256-16)) and (self.transaction.verify() != True) and (self.block_hash < 2**(256-16))
         
 
 
@@ -92,6 +119,12 @@ class block_chain:
     def add_block(self,transaction):
     #a~nade a la cadena un nuevo bloque v´alido generado con la transacci´on "transaction"
         self.list_of_blocks.append(self.list_of_blocks[-1].next_block(transaction))
+
+
+    def add_invalid_block(self,transaction):
+    #a~nade a la cadena un nuevo bloque v´alido generado con la transacci´on "transaction"
+        self.list_of_blocks.append(self.list_of_blocks[-1].next_invalid_block(transaction))
+        return self
     
     
     def verify(self):
@@ -111,7 +144,6 @@ class block_chain:
         for idx, current_block in enumerate(self.list_of_blocks[1:], 1):
             if current_block.previous_block_hash != self.list_of_blocks[idx - 1].block_hash:
                 return [False, idx - 1]
-
             if not current_block.verify_block():
                 return [False, idx - 1]
         return [True, len(self.list_of_blocks) - 1]
