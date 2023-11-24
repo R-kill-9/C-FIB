@@ -25,33 +25,6 @@ class block:
         self.transaction = None
         self.seed = None
 
-    
-    def create_hash(self):
-    # genera un hash válido
-        entrada=str(self.previous_block_hash)
-        entrada=entrada+str(self.transaction.public_key.publicExponent)
-        entrada=entrada+str(self.transaction.public_key.modulus)
-        entrada=entrada+str(self.transaction.message)
-        entrada=entrada+str(self.transaction.signature)
-        entrada=entrada+str(self.seed)
-        h=int(hashlib.sha256(entrada.encode()).hexdigest(),16)
-        return h == self.block_hash
-
-
-    def create_invalid_hash(self):
-    # genera un hash no válido
-        while True:
-            entrada=str(self.previous_block_hash)
-            entrada=entrada+str(self.transaction.public_key.publicExponent)
-            entrada=entrada+str(self.transaction.public_key.modulus)
-            entrada=entrada+str(self.transaction.message)
-            entrada=entrada+str(self.transaction.signature)
-            entrada=entrada+str(self.seed)
-            h=int(hashlib.sha256(entrada.encode()).hexdigest(),16)
-            if entrada > 2 ** (256 - 16):
-                break
-        return h == self.block_hash
-
 
     def genesis(self,transaction):
         self.previous_block_hash = 0
@@ -62,6 +35,18 @@ class block:
             self.seed = random.randrange(0,2**256)
             self.block_hash = self.create_hash()
         return self
+
+
+    def create_hash(self):
+    # genera un hash válido
+        entrada=str(self.previous_block_hash)
+        entrada=entrada+str(self.transaction.public_key.publicExponent)
+        entrada=entrada+str(self.transaction.public_key.modulus)
+        entrada=entrada+str(self.transaction.message)
+        entrada=entrada+str(self.transaction.signature)
+        entrada=entrada+str(self.seed)
+        h=int(hashlib.sha256(entrada.encode()).hexdigest(),16)
+        return h == self.block_hash
 
     
     def next_block(self, transaction):
@@ -85,8 +70,20 @@ class block:
         next_block.previous_block_hash = self.block_hash
         next_block.transaction = transaction
         next_block.seed = random.randrange(0,2**256)
-        next_block.block_hash = next_block.create_invalid_hash
+        next_block.block_hash = next_block.create_hash()
+        while not next_block.verify_invalid_block():
+            next_block.seed = random.randrange(0,2**256)
+            next_block.block_hash = next_block.create_hash()
         return next_block
+
+
+    def verify_invalid_block(self):
+    # Verifica si un bloque es v´alido:
+    # -Comprueba que el hash del bloque cumple las condiciones exigidas
+    # Salida: el booleano True si todas las comprobaciones son correctas;
+    # el booleano False en cualquier otro caso.
+        # comprobacion transaccion ----comprobacion bloque actual
+        return (self.block_hash > 2**(256-16))
 
 
     def verify_block(self):
@@ -97,10 +94,9 @@ class block:
     # -Comprueba que el hash del bloque cumple las condiciones exigidas
     # Salida: el booleano True si todas las comprobaciones son correctas;
     # el booleano False en cualquier otro caso.
-        # comprobacion bloque anterior ---- comprobacion bloque actual ----comprobacion bloque actual
+        # comprobacion bloque anterior ---- comprobacion transaccion ----comprobacion bloque actual
         return (self.previous_block_hash < 2**(256-16)) and (self.transaction.verify() != True) and (self.block_hash < 2**(256-16))
         
-
 
     def is_genesis(self):
         return self.previous_block_hash == 0
@@ -116,16 +112,13 @@ class block_chain:
     # genera una cadena de bloques que es una lista de bloques, el primer bloque es un bloque "genesis" generado amb la transacci´o "transaction"
         self.list_of_blocks = [block().genesis(transaction)]
     
-    def add_block(self,transaction):
+    def add_block(self,transaction, valid):
     #a~nade a la cadena un nuevo bloque v´alido generado con la transacci´on "transaction"
-        self.list_of_blocks.append(self.list_of_blocks[-1].next_block(transaction))
+        if valid:
+            self.list_of_blocks.append(self.list_of_blocks[-1].next_block(transaction))
+        else:
+            self.list_of_blocks.append(self.list_of_blocks[-1].next_invalid_block(transaction))
 
-
-    def add_invalid_block(self,transaction):
-    #a~nade a la cadena un nuevo bloque v´alido generado con la transacci´on "transaction"
-        self.list_of_blocks.append(self.list_of_blocks[-1].next_invalid_block(transaction))
-        return self
-    
     
     def verify(self):
     # verifica si la cadena de bloques es v´alida:
@@ -141,9 +134,9 @@ class block_chain:
         if not self.list_of_blocks[0].is_genesis():
             return [False, -1]
 
-        for idx, current_block in enumerate(self.list_of_blocks[1:], 1):
-            if current_block.previous_block_hash != self.list_of_blocks[idx - 1].block_hash:
-                return [False, idx - 1]
+        for i, current_block in enumerate(self.list_of_blocks[1:], 1):
+            if current_block.previous_block_hash != self.list_of_blocks[i - 1].block_hash:
+                return False
             if not current_block.verify_block():
-                return [False, idx - 1]
-        return [True, len(self.list_of_blocks) - 1]
+                return False
+        return True

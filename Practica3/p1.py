@@ -7,22 +7,16 @@ import hashlib
 import string
 import random
 from time import time
+import csv
 
 
-def get_random_alphanumeric_string(length):
-    letters_and_digits = string.ascii_letters + string.digits
-    return ''.join((random.choice(letters_and_digits) for _ in range(length)))
-
-
-messages = [int(hashlib.sha256(get_random_alphanumeric_string(20).encode()).hexdigest(), 16) for _ in range(100)]
+messages = [int(hashlib.sha256(f"Marcel y Ricard Blockchain {i}".encode()).hexdigest(), 16) for i in range(100)]
 
 
 def create_comp_table():
-    print("Iniciando la comparación entre la firma con TXR y sin TXR.")
-
     rounds = 10
     bits_modulo = [512, 1024, 2048, 4096]
-    output = [["Bits módulo", "Tiempo usando TXR (s)", "Tiempo sin usar TXR (s)"]]
+    output = [["Bits módulo", "Segundos con TCR", "Segundos sin TCR"]]
     for modulo in bits_modulo:
         rsa = rsa_key(bits_modulo=modulo)
 
@@ -43,13 +37,13 @@ def create_comp_table():
 
         output.append([modulo, f'{time_to_sign:.4f}', f'{time_to_sign_slow:.4f}'])
 
-    Path(output_folder).mkdir(exist_ok=True)
-    output_path = os.path.join(output_folder, "tabla_comparativa.csv")
-    with open(output_path, 'w', newline='') as file:
+    
+    with open("comparativa.csv", 'w', newline='') as file:
         csv_file = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         csv_file.writerows(output)
 
-    print(f"Se ha creado el fichero {output_path}")
+    print(f"La tabla comparativa se ha guardado en el archivo comparativa.csv")
+    exit()
 
 
 
@@ -59,21 +53,22 @@ def generate_block_chain(output, limit, num_blocks):
     blockchain = block_chain(next(transactions))
 
     for i in range(1, limit):
-        blockchain.add_block(next(transactions))
+        blockchain.add_block(next(transactions), True)
 
     if limit < num_blocks:
         for i in range(limit, num_blocks):
-            blockchain.add_invalid_block(next(transactions))
+            print(i)
+            blockchain.add_block(next(transactions), False)
 
     
     with open(output, 'wb') as output_file:
         pickle.dump(blockchain, output_file)
 
-    valid, idx = blockchain.verify()
+    valid = blockchain.verify()
     if valid:
         print(f"Se ha generado una Blockchain válida en el archivo {output}")
     else:
-        print(f"Se ha generado una Blockchain NO válida en el archivo {output}, el primer bloque inválido es {idx}")
+        print(f"Se ha generado una Blockchain NO válida en el archivo {output}")
     exit()
 
 
