@@ -48,7 +48,7 @@ class block:
         h=int(hashlib.sha256(entrada.encode()).hexdigest(),16)
         return h == self.block_hash
 
-    
+
     def next_block(self, transaction):
     # genera un bloque v´alido seguiente al actual con la transacci´on "transaction"
         next_block = block()
@@ -69,10 +69,10 @@ class block:
         next_block = block()
         next_block.previous_block_hash = self.block_hash
         next_block.transaction = transaction
-        next_block.seed = random.randrange(0,2**256)
+        next_block.seed = random.randint(0,2**(256-16))
         next_block.block_hash = next_block.create_hash()
         while not next_block.verify_invalid_block():
-            next_block.seed = random.randrange(0,2**256)
+            next_block.seed = random.randint(0,2**(256-16))
             next_block.block_hash = next_block.create_hash()
         return next_block
 
@@ -131,12 +131,8 @@ class block_chain:
     
     # verifica que todos los bloques sean validos y que el siguiente bloque es correcto
     # recorre la lista desde el final empezando por la penultima posicion
-        if not self.list_of_blocks[0].is_genesis():
-            return [False, -1]
-
-        for i, current_block in enumerate(self.list_of_blocks[1:], 1):
-            if current_block.previous_block_hash != self.list_of_blocks[i - 1].block_hash:
-                return False
-            if not current_block.verify_block():
+        
+        for block in self.list_of_blocks[1:]:
+            if not block.verify_block():
                 return False
         return True
