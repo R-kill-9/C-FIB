@@ -46,7 +46,7 @@ class block:
         entrada=entrada+str(self.transaction.signature)
         entrada=entrada+str(self.seed)
         h=int(hashlib.sha256(entrada.encode()).hexdigest(),16)
-        return h == self.block_hash
+        return h    
 
 
     def next_block(self, transaction):
@@ -67,12 +67,12 @@ class block:
         Genera el següent bloc invàlid amb la transacció "transaction".
         """
         next_block = block()
-        next_block.previous_block_hash = self.block_hash
+        next_block.previous_block_hash = int(1234)
         next_block.transaction = transaction
-        next_block.seed = random.randint(0,2**(256-16))
+        next_block.seed = random.randrange(0,2**256)
         next_block.block_hash = next_block.create_hash()
         while not next_block.verify_invalid_block():
-            next_block.seed = random.randint(0,2**(256-16))
+            next_block.seed = random.randrange(0,2**256)
             next_block.block_hash = next_block.create_hash()
         return next_block
 
@@ -98,13 +98,6 @@ class block:
         return (self.previous_block_hash < 2**(256-16)) and (self.transaction.verify() != True) and (self.block_hash < 2**(256-16))
         
 
-    def is_genesis(self):
-        return self.previous_block_hash == 0
-
-
-    def return_hash(self):
-        return self.block_hash
-
 class block_chain:
     
     def __init__(self,transaction):
@@ -112,6 +105,7 @@ class block_chain:
     # genera una cadena de bloques que es una lista de bloques, el primer bloque es un bloque "genesis" generado amb la transacci´o "transaction"
         self.list_of_blocks = [block().genesis(transaction)]
     
+
     def add_block(self,transaction, valid):
     #a~nade a la cadena un nuevo bloque v´alido generado con la transacci´on "transaction"
         if valid:
@@ -131,8 +125,12 @@ class block_chain:
     
     # verifica que todos los bloques sean validos y que el siguiente bloque es correcto
     # recorre la lista desde el final empezando por la penultima posicion
-        
+        i = 0
         for block in self.list_of_blocks[1:]:
-            if not block.verify_block():
+            actual_previous = self.list_of_blocks[i].previous_block_hash
+            previous = self.list_of_blocks[i-1].block_hash
+            okay = (actual_previous == previous)
+            if not block.verify_block() or not okay:
                 return False
+            i=i+1
         return True

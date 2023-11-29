@@ -53,6 +53,7 @@ def generate_block_chain(output, limit, num_blocks):
     blockchain = block_chain(next(transactions))
 
     for i in range(1, limit):
+        print(i)
         blockchain.add_block(next(transactions), True)
 
     if limit < num_blocks:

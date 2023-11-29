@@ -16,8 +16,8 @@ student = 'ricard.medina'
 
 
 def decrypt_RW(rsa_key, encrypted_aes_key, encrypted_file):
-    file_list = [fn for fn in glob(os.path.join(rw_input_path, '*.pem')) if
-                 not os.path.basename(fn).startswith(student)]
+    file_list = []
+    file_list.append('./RSA_RW/ricard.medina_pubkeyRSA_RW.pem')
     for file_name in file_list:
         with open(file_name, 'rb') as file:
             someone_rsa_key = rsa.importKey(file.read())
@@ -26,6 +26,8 @@ def decrypt_RW(rsa_key, encrypted_aes_key, encrypted_file):
 
         if p != 1:
             q = rsa_key.n // p
+            print(f"p: {p}")
+            print(f"q: {q}")
             generate_key(p, q, rsa_key.e)
             decrypt_aes_key(encrypted_aes_key)
             decrypt_file(encrypted_file)
