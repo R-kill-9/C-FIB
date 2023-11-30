@@ -133,7 +133,7 @@ class block_chain:
     
     # verifica que todos los bloques sean validos y que el siguiente bloque es correcto
     # recorre la lista desde el final empezando por la penultima posicion
-        i = 0
+        i = 1
         for block in self.list_of_blocks[1:]:
             actual_previous = self.list_of_blocks[i].previous_block_hash
             previous = self.list_of_blocks[i-1].block_hash
