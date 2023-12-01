@@ -12,12 +12,12 @@ from sqrt_long_division import sqrt_long_division
 output_path = './outputs'
 rw_input_path = './RSA_RW'
 pseudo_input_path = './RSA_pseudo'
-student = 'ricard.medina'
+student = 'marcel.pena'
 
 
 def decrypt_RW(rsa_key, encrypted_aes_key, encrypted_file):
     file_list = []
-    file_list.append('./RSA_RW/ricard.medina_pubkeyRSA_RW.pem')
+    file_list.append('./RSA_RW/marcel.pena_pubkeyRSA_RW.pem')
     for file_name in file_list:
         with open(file_name, 'rb') as file:
             someone_rsa_key = rsa.importKey(file.read())
@@ -207,5 +207,5 @@ class Parte2:
 
 
 if __name__ == '__main__':
-    Parte2.execute_part1()
+   # Parte2.execute_part1()
     Parte2.execute_part2()

@@ -54,7 +54,7 @@ class block:
         entrada=entrada+str(self.transaction.signature)
         entrada=entrada+str(self.seed)
         h=int(hashlib.sha256(entrada.encode()).hexdigest(),16)
-        return h 
+        return h    
 
 
     def next_block(self, transaction):
@@ -67,13 +67,11 @@ class block:
         while not next_block.verify_block():
             next_block.seed = random.randrange(0,2**256)
             next_block.block_hash = next_block.create_hash()
+        print("verified")
         return next_block
 
 
     def next_invalid_block(self, transaction):
-        """
-        Genera el següent bloc invàlid amb la transacció "transaction".
-        """
         next_block = block()
         next_block.previous_block_hash = int(1234)
         next_block.transaction = transaction
@@ -214,69 +212,6 @@ class rsa_public_key:
 
 
 
-class rsa_key:
-    
-    def __init__(self,bits_modulo=2048,e=2**16+1):
-        self.publicExponent = e
-        self.privateExponent = None
-        self.modulus = None
-        self.primeP = None
-        self.primeQ = None
-        self.privateExponentModulusPhiP = None
-        self.privateExponentModulusPhiQ = None
-        self.inverseQModulusP = None
-
-
-    # Generamos dos primos diferentes coprimnos con e
-        while True:
-            self.primeQ = sympy.randprime(2**(bits_modulo - 1), 2**bits_modulo)
-            self.primeP = sympy.randprime(2**(bits_modulo - 1), 2**bits_modulo)
-            different = bool(self.primeP != self.primeQ)
-            coprimes = bool(math.gcd(self.publicExponent, self.primeP) == 1 and math.gcd(self.publicExponent, self.primeQ) == 1)
-            if different and coprimes:
-                break
-        
-        self.modulus = self.primeQ*self.primeP
-        z = (self.primeQ - 1)*(self.primeP)
-
-        # Calcular clave privada
-        self.privateExponent = pow(e, -1, z)
-        self.inverseQModulusP = pow(self.primeQ, -1, self.primeP)
-
-        
-
-
-    def sign(self,message):
-    # Salida= un entero que es la firma de message hecha con la clave RSA usando el TCR
-        self.privateExponentModulusPhiP = self.privateExponent % (self.primeP - 1)
-        self.privateExponentModulusPhiQ = self.privateExponent % (self.primeQ - 1)
-
-        em1 = pow(message, self.privateExponentModulusPhiP, self.primeP)
-        em2 = pow(message, self.privateExponentModulusPhiQ, self.primeQ)
-
-        firma = em1 * self.inverseQModulusP * self.primeQ + em2 * (1 - self.inverseQModulusP * self.primeQ)
-        return firma % self.modulus
-    
-    
-    def sign_slow(self,message):
-    # Salida: un entero que es la firma de "message" hecha con la clave RSA sin usar el TCR
-        return pow(message, self.privateExponent, self.modulus)
-
-
-class rsa_public_key:
-    
-    def __init__(self, rsa_key):
-        self.publicExponent = rsa_key.publicExponent
-        self.modulus = rsa_key.modulus
-    
-
-    def verify(self, message, signature):
-    # Salida: el booleano True si "signature" se corresponde con la
-    # firma de "message" hecha con la clave RSA asociada a la clave
-    # p´ublica RSA;
-    # el booleano False en cualquier otro caso.
-        return pow(signature, self.publicExponent, self.modulus) == message
-
 
 ####################################################################################################
 ############################################### MAIN ###############################################
@@ -325,10 +260,12 @@ def generate_block_chain(output, limit, num_blocks):
     blockchain = block_chain(next(transactions))
 
     for i in range(1, limit):
+        print(i)
         blockchain.add_block(next(transactions), True)
 
     if limit < num_blocks:
         for i in range(limit, num_blocks):
+            print(i)
             blockchain.add_block(next(transactions), False)
 
     
