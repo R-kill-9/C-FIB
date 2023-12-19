@@ -1,11 +1,11 @@
 1 -> Teoria
-2 -> 
+2 -> SAGEMath RSA-Atenea.ipynb exponente compartido
 3 -> Teoria
-4 -> Usar código verificador de firmas de la practica4 
+4 -> Usar código verificador de firmas de la practica4/SAGEMath.ipynb Logaritmo_discreto Curvas elípticas verificación de firmas 
 5 -> Guardar clave en archivo pem, usar certificate_verifier.py
 6 -> Teoria
 7 -> SAGEMath RSA-Atenea.ipynb módulo compartido
 8 -> Teoria
 9 -> Teoria
 10 -> Usar block_validator.py
-11 -> 
+11 -> SAGEMath Logaritmo discreto Curvas elípticas DH
